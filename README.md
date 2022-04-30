@@ -13,4 +13,4 @@ All operations are done by clicking systray menus.
 
 ## Acknowledge
 
-- Icon is from [icnoic](https://useiconic.com/open)
+- Icon is from [Iconic](https://useiconic.com/open)
