@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 use tauri::api::process::{self, CommandChild};
 use tauri::AppHandle;
@@ -30,24 +30,23 @@ impl Config {
     }
     fn read() -> Config {
         env::current_exe()
-            .and_then(|exe| {
+            .map(|exe| {
                 let config_file = exe.with_extension("json");
                 if config_file.exists() {
                     let s = fs::read_to_string(config_file).expect("Failed to read config file");
                     let c: Config = serde_json::from_str(&s).expect("Failed to parse config file");
-                    Ok(c)
+                    c
                 } else {
-                    Ok(Self::new())
+                    Self::new()
                 }
             })
-            .unwrap_or(Self::new())
+            .unwrap_or_else(|_| Self::new())
     }
     fn save(&self) {
-        let _ = env::current_exe().and_then(|exe| {
+        let _ = env::current_exe().map(|exe| {
             let config_file = exe.with_extension("json");
             let file = File::create(config_file).expect("Failed to create config file");
             serde_json::to_writer_pretty(file, &self).expect("Failed to write config file");
-            Ok(())
         });
     }
 }
@@ -60,15 +59,21 @@ pub enum Status {
 }
 
 #[derive(Debug)]
-pub struct PorguardManager {
+pub struct PortguardManager {
     config: Config,
     pub status: Status,
     child: Option<CommandChild>,
 }
 
-impl PorguardManager {
-    pub fn new() -> PorguardManager {
-        PorguardManager {
+impl Default for PortguardManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PortguardManager {
+    pub fn new() -> PortguardManager {
+        PortguardManager {
             config: Config::read(),
             status: Status::Unselected,
             child: None,
@@ -80,7 +85,7 @@ impl PorguardManager {
             self.start_background().ok();
         }
     }
-    fn build_client_menu(&self, id: &Uuid, path: &PathBuf) -> SystemTraySubmenu {
+    fn build_client_menu(&self, id: &Uuid, path: &Path) -> SystemTraySubmenu {
         let name = path.file_stem().unwrap().to_string_lossy();
         let mut client_item = SystemTrayMenu::new();
         match self.status {
@@ -94,8 +99,7 @@ impl PorguardManager {
             }
         };
         client_item = client_item.add_item(CustomMenuItem::new(format!("r-{}", id), "Remove"));
-        let client_menu = SystemTraySubmenu::new(name, client_item);
-        client_menu
+        SystemTraySubmenu::new(name, client_item)
     }
     pub fn build_menu(&self) -> SystemTrayMenu {
         let mut clients_items = SystemTrayMenu::new();
@@ -144,7 +148,7 @@ impl PorguardManager {
                 if id != uuid {
                     self.config.clients.remove(&id);
                 } else {
-                    Err(String::from("Client is Running"))?
+                    return Err("Client is Running".into());
                 }
             }
             Status::Stopped(uuid) => {
@@ -194,7 +198,7 @@ impl PorguardManager {
                 self.child = Some(child);
                 Ok(())
             }
-            _ => Err("Other Is Running")?,
+            _ => Err("Other Is Running".into()),
         }
     }
     pub fn stop_background(&mut self) -> Result<(), Box<dyn Error>> {

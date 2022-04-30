@@ -8,22 +8,20 @@ use std::sync::{Arc, Mutex};
 use tauri::api::dialog;
 use tauri_api::dialog::Response::Okay;
 // use tauri::window::{Window, WindowId};
-use log;
 use tauri::Manager;
 use tauri::{SystemTray, SystemTrayEvent};
 use uuid::Uuid;
 
-use portguard_systray::PorguardManager;
+use portguard_systray::PortguardManager;
 
 fn main() {
     env_logger::init();
-    let pm = Arc::new(Mutex::new(PorguardManager::new()));
+    let pm = Arc::new(Mutex::new(PortguardManager::new()));
     pm.lock().unwrap().init();
     let tray_menu = pm.lock().unwrap().build_menu();
     tauri::Builder::default()
         .system_tray(SystemTray::new().with_menu(tray_menu))
-        .on_system_tray_event(move |app, event| {
-            match event {
+        .on_system_tray_event(move |app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "add" => {
                     let window = app.get_window("main").unwrap();
@@ -83,8 +81,7 @@ fn main() {
                 }
             },
             _ => {}
-        }
-    })
+        })
         .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");
 }
