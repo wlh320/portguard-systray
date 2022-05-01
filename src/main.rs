@@ -3,11 +3,8 @@
     windows_subsystem = "windows"
 )]
 use std::env;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tauri::api::dialog;
-use tauri_api::dialog::Response::Okay;
-// use tauri::window::{Window, WindowId};
 use tauri::Manager;
 use tauri::{SystemTray, SystemTrayEvent};
 use uuid::Uuid;
@@ -25,25 +22,27 @@ fn main() {
             SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "add" => {
                     let window = app.get_window("main").unwrap();
-                    let filepath =
-                        tauri_api::dialog::select(Option::<&String>::None, Option::<&Path>::None);
+                    let filepath = dialog::blocking::FileDialogBuilder::default().pick_file();
+                    log::debug!("select file: {:?}", filepath);
                     match filepath {
-                        Ok(Okay(s)) => {
-                            log::debug!("add client: {:?}", s);
-                            pm.lock().unwrap().add_client(s);
+                        Some(f) => {
+                            pm.lock().unwrap().add_client(f);
                             pm.lock().unwrap().save_config();
                             pm.lock().unwrap().update_menu(app);
                         }
-                        _ => {
-                            dialog::message(Some(&window), "Invalid file", "select an invalid file")
-                        }
-                    }
+                        _ => dialog::message(
+                            Some(&window),
+                            "Pick file failed",
+                            "pick invalid file or nothing",
+                        ),
+                    };
                 }
                 "start" => {
                     let window = app.get_window("main").unwrap();
                     if let Err(e) = pm.lock().unwrap().start_background() {
                         dialog::message(Some(&window), e.to_string(), e.to_string());
                     }
+                    log::debug!("current status {:?}", pm.lock().unwrap().status());
                     pm.lock().unwrap().update_menu(app);
                 }
                 "stop" => {
@@ -51,7 +50,7 @@ fn main() {
                     if let Err(e) = pm.lock().unwrap().stop_background() {
                         dialog::message(Some(&window), e.to_string(), e.to_string());
                     }
-
+                    log::debug!("current status {:?}", pm.lock().unwrap().status());
                     pm.lock().unwrap().update_menu(app);
                 }
                 "quit" => {
@@ -59,11 +58,16 @@ fn main() {
                     pm.lock().unwrap().save_config();
                     std::process::exit(0);
                 }
+                "about" => {
+                    let window = app.get_window("main").unwrap();
+                    let version = format!("Version {}", env!("CARGO_PKG_VERSION"));
+                    dialog::message(Some(&window), "About portguard-systray", version);
+                }
                 id => {
+                    log::debug!("menu id: {} is clicked", id);
                     let window = app.get_window("main").unwrap();
                     let uuid = Uuid::parse_str(&id[2..]).expect("Invalid input");
                     // remove or select
-                    println!("{}", id);
                     match &id[0..2] {
                         "r-" => {
                             if let Err(e) = pm.lock().unwrap().remove_client(uuid) {
@@ -80,6 +84,7 @@ fn main() {
                     pm.lock().unwrap().update_menu(app);
                 }
             },
+            SystemTrayEvent::LeftClick { .. } => {}
             _ => {}
         })
         .run(tauri::generate_context!("tauri.conf.json"))

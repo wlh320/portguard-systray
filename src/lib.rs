@@ -4,14 +4,13 @@
 )]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
 use std::error::Error;
-use std::fs::File;
+use std::fs::{self, File};
 use std::path::{Path, PathBuf};
-use std::{env, fs};
 use tauri::api::process::{self, CommandChild};
-use tauri::AppHandle;
-use tauri::SystemTraySubmenu;
-use tauri::{CustomMenuItem, SystemTrayMenu};
+use tauri::{AppHandle, SystemTrayMenuItem};
+use tauri::{CustomMenuItem, SystemTrayMenu, SystemTraySubmenu};
 use uuid::Uuid;
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
@@ -51,7 +50,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Status {
     Running(Uuid),
     Stopped(Uuid),
@@ -61,7 +60,7 @@ pub enum Status {
 #[derive(Debug)]
 pub struct PortguardManager {
     config: Config,
-    pub status: Status,
+    status: Status,
     child: Option<CommandChild>,
 }
 
@@ -78,6 +77,9 @@ impl PortguardManager {
             status: Status::Unselected,
             child: None,
         }
+    }
+    pub fn status(&self) -> Status {
+        self.status
     }
     pub fn init(&mut self) {
         if let Some(id) = self.config.last_selected {
@@ -111,7 +113,8 @@ impl PortguardManager {
         let mut tray_menu = SystemTrayMenu::new();
         tray_menu = tray_menu
             .add_item(CustomMenuItem::new("add", "Add Client"))
-            .add_submenu(clients_submenu);
+            .add_submenu(clients_submenu)
+            .add_native_item(SystemTrayMenuItem::Separator);
         match self.status {
             Status::Running(_) => {
                 tray_menu = tray_menu
@@ -129,7 +132,10 @@ impl PortguardManager {
                     .add_item(CustomMenuItem::new("stop", "Stop").disabled());
             }
         }
-        tray_menu = tray_menu.add_item(CustomMenuItem::new("quit", "Quit"));
+        tray_menu = tray_menu
+            .add_native_item(SystemTrayMenuItem::Separator)
+            .add_item(CustomMenuItem::new("about", "About"))
+            .add_item(CustomMenuItem::new("quit", "Quit"));
         tray_menu
     }
     pub fn update_menu(&self, app: &AppHandle) {
@@ -138,9 +144,9 @@ impl PortguardManager {
             .set_menu(new_menu)
             .expect("Failed to update menu");
     }
-    pub fn add_client(&mut self, s: String) {
+    pub fn add_client(&mut self, p: PathBuf) {
         let id = Uuid::new_v4();
-        self.config.clients.insert(id, PathBuf::from(s));
+        self.config.clients.insert(id, p);
     }
     pub fn remove_client(&mut self, id: Uuid) -> Result<(), Box<dyn Error>> {
         match self.status {
@@ -172,7 +178,6 @@ impl PortguardManager {
         match self.status {
             Status::Running(uuid) => {
                 if uuid != id {
-                    println!("old {} new {}", uuid, id);
                     // stop old
                     self.stop_background()?;
                     // change uuid to new

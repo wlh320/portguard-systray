@@ -1,6 +1,6 @@
 # portguard-systray
 
-Systemtray GUI App for [portguard](https://github.com/wlh320/portguard) client, written in [tauri](https://tauri.studio).
+System tray GUI App for [portguard](https://github.com/wlh320/portguard) client, written in [tauri](https://tauri.studio).
 
 ## Usage
 
@@ -10,7 +10,6 @@ Systemtray GUI App for [portguard](https://github.com/wlh320/portguard) client, 
 
 All operations are done by clicking systray menus.
 
-
-## Acknowledge
+## Acknowledgement
 
 - Icon is from [icnoic](https://useiconic.com/open)
