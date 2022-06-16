@@ -21,26 +21,24 @@ fn main() {
         .on_system_tray_event(move |app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "add" => {
-                    let (tx, rx) = std::sync::mpsc::channel();
-                    std::thread::spawn(move || {
-                        let filepath = dialog::blocking::FileDialogBuilder::default().pick_file();
-                        tx.send(filepath).unwrap();
+                    let pm = pm.clone();
+                    let app = app.clone();
+                    dialog::FileDialogBuilder::new().pick_file(move |filepath| {
+                        let window = app.get_window("main").unwrap();
+                        log::debug!("select file: {:?}", filepath);
+                        match filepath {
+                            Some(f) => {
+                                pm.lock().unwrap().add_client(f);
+                                pm.lock().unwrap().save_config();
+                                pm.lock().unwrap().update_menu(&app);
+                            }
+                            _ => dialog::message(
+                                Some(&window),
+                                "Pick file failed",
+                                "pick invalid file or nothing",
+                            ),
+                        };
                     });
-                    let filepath = rx.recv().unwrap();
-                    let window = app.get_window("main").unwrap();
-                    log::debug!("select file: {:?}", filepath);
-                    match filepath {
-                        Some(f) => {
-                            pm.lock().unwrap().add_client(f);
-                            pm.lock().unwrap().save_config();
-                            pm.lock().unwrap().update_menu(app);
-                        }
-                        _ => dialog::message(
-                            Some(&window),
-                            "Pick file failed",
-                            "pick invalid file or nothing",
-                        ),
-                    };
                 }
                 "start" => {
                     let window = app.get_window("main").unwrap();
