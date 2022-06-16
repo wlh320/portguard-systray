@@ -1,0 +1,38 @@
+[package]
+authors = ["zilch40"]
+description = "A Tauri App"
+edition = "2021"
+license = ""
+name = "portguard-systray"
+repository = "htts://github.com/wlh320/portguard-systray"
+rust-version = "1.61"
+version = "0.1.1"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = {version = "1.0.0", features = [] }
+
+[dependencies]
+env_logger = "0.9.0"
+log = "0.4.16"
+serde = {version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = {version = "1.0.0", features = ["api-all", "dialog", "process-command-api", "system-tray"] }
+uuid = {version = "1.0.0", features = ["v4", "fast-rng", "serde"] }
+
+[features]
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is an URL
+default = ["custom-protocol"]
+# this feature is used used for production builds where `devPath` points to the filesystem
+# DO NOT remove this
+custom-protocol = ["tauri/custom-protocol"]
+
+[profile.release]
+# Optimize for size
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"
+strip = true

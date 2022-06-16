@@ -21,8 +21,13 @@ fn main() {
         .on_system_tray_event(move |app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "add" => {
+                    let (tx, rx) = std::sync::mpsc::channel();
+                    std::thread::spawn(move || {
+                        let filepath = dialog::blocking::FileDialogBuilder::default().pick_file();
+                        tx.send(filepath).unwrap();
+                    });
+                    let filepath = rx.recv().unwrap();
                     let window = app.get_window("main").unwrap();
-                    let filepath = dialog::blocking::FileDialogBuilder::default().pick_file();
                     log::debug!("select file: {:?}", filepath);
                     match filepath {
                         Some(f) => {
