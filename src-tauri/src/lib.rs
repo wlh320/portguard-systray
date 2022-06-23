@@ -4,7 +4,6 @@
 )]
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
 use std::error::Error;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
@@ -12,6 +11,7 @@ use tauri::api::process::{self, CommandChild};
 use tauri::{AppHandle, SystemTrayMenuItem};
 use tauri::{CustomMenuItem, SystemTrayMenu, SystemTraySubmenu};
 use uuid::Uuid;
+
 #[derive(Debug, Serialize, Deserialize)]
 struct Config {
     /// all clients, identified by binary file location
@@ -27,26 +27,25 @@ impl Config {
             last_selected: None,
         }
     }
+    fn config_path() -> PathBuf {
+        let mut path = dirs::config_dir().unwrap();
+        path.push("portguard-systray.json");
+        path
+    }
     fn read() -> Config {
-        env::current_exe()
-            .map(|exe| {
-                let config_file = exe.with_extension("json");
-                if config_file.exists() {
-                    let s = fs::read_to_string(config_file).expect("Failed to read config file");
-                    let c: Config = serde_json::from_str(&s).expect("Failed to parse config file");
-                    c
-                } else {
-                    Self::new()
-                }
-            })
-            .unwrap_or_else(|_| Self::new())
+        let config_file = Config::config_path();
+        if config_file.exists() {
+            let s = fs::read_to_string(config_file).expect("Fail to read config file");
+            let c: Config = serde_json::from_str(&s).expect("Fail to parse config file");
+            c
+        } else {
+            Self::new()
+        }
     }
     fn save(&self) {
-        let _ = env::current_exe().map(|exe| {
-            let config_file = exe.with_extension("json");
-            let file = File::create(config_file).expect("Failed to create config file");
-            serde_json::to_writer_pretty(file, &self).expect("Failed to write config file");
-        });
+        let config_file = Config::config_path();
+        let file = File::create(config_file).expect("Fail to create config file");
+        serde_json::to_writer_pretty(file, &self).expect("Fail to write config file");
     }
 }
 
